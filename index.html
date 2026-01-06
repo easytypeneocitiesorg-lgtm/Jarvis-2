@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Jarvis</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+  body {
+    background: #000;
+    color: #0ff;
+    font-family: monospace;
+    padding: 20px;
+  }
+  h1 { color: #fff; }
+  #log {
+    white-space: pre-wrap;
+    margin-top: 20px;
+    border: 1px solid #0ff;
+    padding: 10px;
+    min-height: 200px;
+  }
+  button {
+    background: #0ff;
+    color: #000;
+    border: none;
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<h1>J.A.R.V.I.S</h1>
+<button onclick="start()">Start Listening</button>
+
+<div id="log"></div>
+
+<script>
+const log = msg => {
+  document.getElementById("log").textContent += msg + "\n";
+};
+
+let recognizing = false;
+let awaitingCommand = false;
+
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+const recognition = new SpeechRecognition();
+
+recognition.continuous = true;
+recognition.interimResults = false;
+recognition.lang = "en-US";
+
+recognition.onresult = async (event) => {
+  const transcript = event.results[event.results.length - 1][0].transcript.toLowerCase().trim();
+  log("You: " + transcript);
+
+  if (!awaitingCommand && transcript.includes("hey jarvis")) {
+    awaitingCommand = true;
+    log("Jarvis: Listening...");
+    return;
+  }
+
+  if (awaitingCommand) {
+    awaitingCommand = false;
+    sendToAI(transcript);
+  }
+};
+
+recognition.onerror = e => console.error(e);
+
+function start() {
+  if (!recognizing) {
+    recognition.start();
+    recognizing = true;
+    log("Jarvis: Online.");
+  }
+}
+
+async function sendToAI(text) {
+  log("Jarvis: Thinking...");
+
+  const res = await fetch("/api/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt: text })
+  });
+
+  const data = await res.json();
+  const reply = data.reply;
+
+  log("Jarvis: " + reply);
+  speak(reply);
+}
+
+function speak(text) {
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.rate = 1;
+  utterance.pitch = 0.9;
+  speechSynthesis.speak(utterance);
+}
+</script>
+
+</body>
+</html>
